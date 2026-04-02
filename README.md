@@ -1,280 +1,211 @@
 # ✈️ Family Travel Planner
 
-A lightweight, offline-friendly travel itinerary website. No frameworks, no build tools, no database — just HTML, CSS, JS, and your trip data.
-
-![screenshot](https://img.shields.io/badge/status-active-brightgreen) ![license](https://img.shields.io/badge/license-MIT-blue)
+A simple travel itinerary website that works offline.  
+No frameworks. No build tools. No database.  
+Just HTML, CSS, JS, and your trip data.
 
 ---
 
 ## 📁 Project Structure
 
-
-project/
-├── index.html          ← skeleton (edit only to add new trip scripts)
+```
+travel-planner/
+├── index.html              # skeleton — edit only to add new trip scripts
+├── README.md
 ├── css/
-│   └── styles.css      ← all styling
+│   └── styles.css          # all styling
 ├── js/
-│   └── app.js          ← rendering engine (don't touch unless customising)
-├── trips/
-│   ├── _template.js    ← copy this to create a new trip
-│   ├── london.js       ← example trip
-│   └── scotland.js     ← example trip
-└── README.md
-
-yaml
-
-Copy code
+│   └── app.js              # rendering engine (don't edit)
+└── trips/
+    ├── _template.js        # the master template — never delete this
+    ├── london.js           # example trip
+    └── scotland.js         # example trip
+```
 
 ---
 
 ## 🚀 Quick Start
 
-1. Download or clone the project
-2. Open `index.html` in any browser
-3. That's it — no server, no install, no build step
+```bash
+git clone https://github.com/YOUR_USERNAME/travel-planner.git
+open index.html
+```
+
+No `npm install`. No server. No build step. Just open and go.
 
 ---
 
-## ➕ Adding a New Trip
+## ✨ What You Get
 
-### Step 1: Copy the template
+| Feature | Description |
+|---------|-------------|
+| **Multi-trip home page** | Unlimited trips, each as a card with progress |
+| **Two view modes** | Summary (compact) ↔ Detailed (legends, hacks, photo spots) |
+| **Collapsible days** | Tap to expand/collapse |
+| **Progress tracking** | Check off stops. Saved in browser. Survives refresh |
+| **Day jumper** | Jump to any day. Pills turn green when complete |
+| **Food guide popup** | Multiple restaurant options per meal with tags and details |
+| **Emergency modal** | Tappable phone numbers, hospitals with maps |
+| **Hacks & tips** | Trip-specific money/time saving tips |
+| **Map links** | Every stop, hotel, grocery links to Google Maps |
+| **Fully offline** | No API calls. All data in JS files |
+| **Mobile first** | Built for phones. Works on desktop too |
 
+---
 
-Copy:   trips/_template.js
-Rename: trips/your-trip-name.js
+## ➕ How to Add a New Trip
 
-php
-Run Code
+### 1. Download the template
 
-Copy code
+Download or copy `trips/_template.js` from this repo.
 
-### Step 2: Edit your trip file
+---
 
-Open your new file and fill in:
+### 2. Ask any AI to fill it
 
-```javascript
-window.TRIPS = window.TRIPS || {};
+Open any AI chatbot (ChatGPT, Claude, Gemini, Copilot — anything).  
+Send this prompt, and **attach `_template.js` as a file or paste it below the prompt**:
 
-window.TRIPS["paris"] = {       // ← unique lowercase id, no spaces
+---
 
-    id:       "paris",
-    name:     "Paris",
-    emoji:    "🇫🇷",
-    subtitle: "City of Lights",
-    dates:    "Jun 10 – Jun 14, 2026",
-    gradient: "violet",         // colour theme (see options below)
+```
+I need you to write a travel itinerary as a JavaScript data file.
 
-    emergency: { ... },         // emergency numbers & hospitals
-    hacks:     [ ... ],         // tips shown in the 💰 modal
-    days:      [ ... ]          // your day-by-day itinerary
-};
+I have attached a template file. Follow the exact structure and format in that template.
+Do not change any field names or the JavaScript structure.
+Output ONLY the JavaScript code, nothing else — no explanations before or after.
 
+MY TRIP DETAILS:
 
-Step 3: Register it in index.html
-Add one line before the app.js script tag:
+Destination: [CITY / COUNTRY]
+Dates: [START DATE – END DATE]
+Traveling with: [e.g., partner and 5-year-old son]
+Flying from: [ORIGIN CITY]
+Flight details: [FLIGHT TIMES if known, or say "pick reasonable times"]
+Hotels: [LIST YOUR HOTEL NAMES AND DATES, or say "suggest budget hotels"]
+Interests: [e.g., history, food, Harry Potter, playgrounds, nature, photography]
+Budget level: [budget / mid-range / luxury]
+Diet: [e.g., vegetarian, no restrictions, halal]
+Travel style: [e.g., no museums, free activities preferred, lots of walking]
 
-html
+RULES FOR THE AI:
+1. Follow the attached template format exactly. Do not rename or remove any fields.
+2. gradient must be one of: red, indigo, emerald, amber, violet, sky
+3. icon must be a valid Font Awesome 6 icon name without the "fa-" prefix
+4. Every stop MUST include: time, title, desc. Include as many optional fields as possible.
+5. Meals must be arrays: [{ name, cost, tag, desc, link }] — not single objects.
+6. Include at least 2 lunch options per day (one must-visit, one budget alternative).
+7. Include real emergency numbers and nearest hospitals for the destination.
+8. Include at least 6 destination-specific hacks and tips.
+9. Add a "dessert" meal type if the destination is known for sweets or pastries.
+10. For every stop include at minimum: do, famous, photoSpot, and hack.
+11. All links should be real Google search URLs or official website URLs.
+12. Output ONLY the JavaScript. Nothing else.
+```
 
-Copy code
-<!-- existing trips -->
+---
+
+### 3. Save the AI output
+
+Save the AI's response as a `.js` file inside the `trips/` folder:
+
+```
+trips/paris.js
+trips/tokyo.js
+trips/new-york.js
+```
+
+---
+
+### 4. Register in index.html
+
+Open `index.html` and add **one line** before the `app.js` script tag:
+
+```html
 <script src="trips/london.js"></script>
 <script src="trips/scotland.js"></script>
+<script src="trips/paris.js"></script>      <!-- ✅ your new trip -->
 
-<!-- your new trip — add here -->
-<script src="trips/paris.js"></script>
+<script src="js/app.js"></script>           <!-- must always be LAST -->
+```
 
-<!-- app engine — must be LAST -->
-<script src="js/app.js"></script>
+Refresh your browser. Your trip appears on the home page.
 
-Step 4: Refresh browser
-Your trip appears on the home page automatically.
+---
 
-📝 Trip File Format
-Minimum Required Fields
-Every trip needs:
+## 🎨 Gradient Colours
 
-javascript
-Run Code
+| Value | Colour |
+|-------|--------|
+| `red` | Red / Rose |
+| `indigo` | Indigo / Blue |
+| `emerald` | Green |
+| `amber` | Orange / Gold |
+| `violet` | Purple |
+| `sky` | Light Blue |
 
-Copy code
-{
-    id, name, emoji, subtitle, dates, gradient,
-    emergency: { numbers: [], hospitals: [], apps: [] },
-    hacks: [],
-    days: []
-}
+**Adding a custom colour** — add to `css/styles.css`:
 
-
-Every day needs:
-
-javascript
-Run Code
-
-Copy code
-{
-    day: 1,
-    date: "Jun 10",
-    title: "Day Title",
-    route: "From → To",
-    stops: []
-}
-
-
-Every stop needs only 3 fields (everything else is optional):
-
-javascript
-Run Code
-
-Copy code
-{
-    time:  "10:00",
-    title: "Place Name",
-    desc:  "Brief description."
-}
-
-
-All Optional Stop Fields
-javascript
-Run Code
-
-Copy code
-{
-    // REQUIRED
-    time:      "10:00",
-    title:     "Place Name",
-    desc:      "Brief description.",
-
-    // OPTIONAL — add any, skip any
-    icon:      "camera",          // Font Awesome icon (without "fa-")
-    loc:       "SW1A 1AA",        // postcode or address (for Map button)
-    duration:  "1.5 hrs",         // how long to spend
-    cost:      "Free",            // entry cost
-    do:        "What to do here.",
-    eat:       "Food recommendations.",
-    famous:    "What it's famous for.",
-    legend:    "Any myth or cool story.",
-    photoSpot: "📸 Best photo angles.",
-    hack:      "Money or time saving tip.",
-    link:      "https://..."      // Learn More URL
-}
-
-
-Day Optional Fields
-javascript
-Run Code
-
-Copy code
-{
-    // REQUIRED
-    day, date, title, route, stops,
-
-    // OPTIONAL
-    hotel:     "Hotel Name",
-    hotelLink: "https://...",
-    hotelLoc:  "postcode",
-
-    grocery:    "Nearest Supermarket",
-    groceryLoc: "postcode",
-
-    // Use driving OR transit OR both
-    driving: {
-        km:       150,
-        time:     "2h 30m",
-        warnings: "Road warnings",
-        fuelStop: "Where to fuel"
-    },
-    transit: {
-        lines: "Metro Line 1 → Bus 42",
-        cost:  "Day pass €8",
-        tips:  "Buy tickets at machine"
-    },
-
-    // Meals — each type is an ARRAY of options
-    meals: {
-        breakfast: [
-            { name: "Café", cost: "€5-8pp", tag: "☕ Quick", desc: "Details", link: "" }
-        ],
-        lunch: [
-            { name: "Top Pick", cost: "€12pp", tag: "🌟 Must Visit", desc: "Details", link: "https://..." },
-            { name: "Budget", cost: "€5pp", tag: "💰 Cheap", desc: "Details", link: "" }
-        ],
-        dessert: [
-            { name: "Sweet Spot", cost: "€4", tag: "🍰 Treat", desc: "Details", link: "" }
-        ],
-        dinner: [
-            { name: "Restaurant", cost: "€15pp", tag: "🔥 Popular", desc: "Details", link: "" }
-        ]
-    }
-}
-
-
-🎨 Available Gradient Colours
-Use these values for the gradient field:
-
-Value	Colour
-red	Red/Rose
-indigo	Indigo/Blue
-emerald	Green
-amber	Orange/Gold
-violet	Purple
-sky	Light Blue
-To add a custom colour, add this to css/styles.css:
-
-css
-
-Copy code
+```css
 .grad-pink { background: linear-gradient(135deg, #ec4899, #f472b6); }
+```
 
-Then use gradient: "pink" in your trip file.
+Then use `gradient: "pink"` in your trip file.
 
-🔧 Features
-Feature	How It Works
-Two view modes	Summary (compact) ↔ Detailed (all info). Toggle button in header.
-Collapsible days	Click day header to expand/collapse. Layer button collapses all.
-Progress tracking	Check off stops as you complete them. Saved in browser localStorage.
-Day jumper	Numbered buttons in header — jump to any day. Turns green when all stops done.
-Food guide	Tap the meal block on any day for a detailed popup with all options.
-Emergency info	Red 🚨 button — phone numbers (tappable), hospitals with maps, useful apps.
-Hacks & tips	💰 button — trip-specific money/time saving tips.
-Map links	Every stop, hotel, and grocery has a Google Maps link.
-💾 Data Storage
-All progress (checked stops) is saved in browser localStorage
-No server, no account, no cloud
-Clearing browser data resets progress
-Each trip's progress is independent (prefixed by trip ID)
-📱 Offline Use
-The site works offline once loaded. For areas with no signal:
+---
 
-Open the site while online
-The browser caches the HTML/CSS/JS
-Trip data is embedded in the JS files — no API calls
-For better offline support, consider adding a service worker (not included).
+## 💾 How Progress Works
 
-🤖 Using AI to Generate Trip Data
-Give your AI assistant this prompt:
+- Checked stops are saved in **browser localStorage**
+- Each trip is tracked independently
+- No server, no account, no cloud sync
+- Clearing browser data will reset progress
+- Progress persists across refreshes and browser restarts
 
-less
+---
 
-Copy code
-Write me a trip itinerary file for [DESTINATION] in this exact JavaScript format.
-[Paste the contents of trips/_template.js here]
+## 🌐 Deployment
 
-Trip details:
-- Dates: [your dates]
-- Traveling with: [who]
-- Interests: [what you like]
-- Budget: [budget level]
-- Hotels: [your hotel names]
+| Platform | How |
+|----------|-----|
+| **GitHub Pages** | Push → Settings → Pages → Deploy from branch |
+| **Netlify** | Drag and drop the project folder |
+| **Vercel** | `vercel --prod` in the project folder |
+| **Local** | Just open `index.html` |
+| **USB / offline** | Copy the folder anywhere. Open `index.html`. Works with no internet |
 
-Save the output as trips/your-trip.js, add the script tag to index.html, done.
+---
 
-📋 Checklist for New Trip
- Copied trips/_template.js to new file
- Set unique id (lowercase, no spaces)
- Filled in trip info (name, emoji, dates, gradient)
- Added emergency numbers & hospitals
- Added hacks/tips
- Added all days with stops
- Added meals as arrays [{...}] not single objects {...}
- Added <script> tag to index.html before app.js
- Tested in browser
+## ✅ New Trip Checklist
+
+```
+[ ] Downloaded trips/_template.js
+[ ] Sent AI prompt with template attached and trip details filled in
+[ ] Saved AI output as trips/my-trip.js
+[ ] Verified the file starts with: window.TRIPS = window.TRIPS || {};
+[ ] Added <script src="trips/my-trip.js"></script> to index.html
+[ ] Script tag is BEFORE app.js
+[ ] Opened in browser — trip shows on home page
+[ ] Tapped into trip — days expand correctly
+[ ] Tapped meal block — food popup opens
+[ ] Checked a stop — progress saves without jumping back to home
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Trip doesn't appear | Check script tag is before `app.js` in `index.html` |
+| JavaScript error in console | Usually a missing comma or bracket — paste your JS into [jsonlint.com](https://jsonlint.com) to spot it |
+| Meals show undefined | Meals must be arrays `[{...}]` not single objects `{...}` |
+| Checking a stop jumps to home | See `markDone` function in `app.js` — scroll position fix required |
+| Food popup is empty | Check meals arrays each have at least `name` and `cost` |
+| Map links don't work | Check the `loc` field has a real postcode or address |
+
+---
+
+## 📄 License
+
+MIT — use it however you want. No attribution required.
