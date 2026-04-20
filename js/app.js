@@ -2,7 +2,7 @@
  * Family Travel Planner — App Engine
  * 
  * Reads trip data from window.TRIPS (populated by trip files in /trips/)
- * Handles: routing, rendering, view modes, progress, modals
+ * Handles: routing, rendering, view modes, progress, modals, Admin (GitHub API)
  */
 
 (function () {
@@ -11,6 +11,10 @@
     // ===== STATE =====
     let activeTrip = null;
     let viewMode = 'summary'; // 'summary' | 'detailed'
+
+    // Admin State
+    let adminToken = localStorage.getItem('gh_token') || '';
+    let adminRepo = localStorage.getItem('gh_repo') || '';
 
     // ===== HELPERS =====
     function $(id) { return document.getElementById(id); }
@@ -331,6 +335,14 @@ window.showFoodGuide = function (dayNum) {
     function renderStop(trip, day, stop, idx) {
         const key = stopKey(trip.id, day.day, idx);
         const done = isDone(key);
+
+        // Document badge logic (admin documents)
+        let docBadge = '';
+        if (stop.doc) {
+            const docUrl = `docs/${stop.doc}`;
+            docBadge = `<a href="${docUrl}" target="_blank" class="doc-badge"><i class="fas fa-file-invoice"></i> View Ticket</a>`;
+        }
+
         return `
         <div class="stop-item ${done ? 'done' : ''}">
             <div class="stop-dot ${done ? 'done' : ''}"></div>
@@ -344,6 +356,7 @@ window.showFoodGuide = function (dayNum) {
                         ${stop.duration ? `<span class="stop-tag time"><i class="far fa-clock"></i> ${stop.duration}</span>` : ''}
                         ${stop.cost ? `<span class="stop-tag cost"><i class="fas fa-tag"></i> ${stop.cost}</span>` : ''}
                     </div>
+                    ${docBadge}
                 </div>
                 <button class="stop-check" onclick="markDone('${key}')">
                     <i class="${done ? 'fas fa-check-circle checked' : 'far fa-circle unchecked'}"></i>
@@ -525,6 +538,122 @@ window.showFoodGuide = function (dayNum) {
                 alert('Could not download the JS file directly. You can find it in the repository under trips/' + fileName);
             });
     };
+
+    // ===== ADMIN SYSTEM (GitHub API) =====
+    window.openAdmin = function() {
+        $('adminModal').classList.add('active');
+        if (adminToken && adminRepo) {
+            showAdminDashboard();
+        }
+    };
+
+    window.loginAdmin = function() {
+        const token = $('adminToken').value.trim();
+        const repo = $('adminRepo').value.trim();
+        if (!token || !repo) return alert("Please enter both Token and Repo path (user/repo).");
+
+        adminToken = token;
+        adminRepo = repo;
+        localStorage.setItem('gh_token', token);
+        localStorage.setItem('gh_repo', repo);
+        showAdminDashboard();
+    };
+
+    window.logoutAdmin = function() {
+        adminToken = '';
+        adminRepo = '';
+        localStorage.removeItem('gh_token');
+        localStorage.removeItem('gh_repo');
+        $('adminDashboard').classList.add('hidden');
+        $('adminLoginArea').classList.remove('hidden');
+    };
+
+    function showAdminDashboard() {
+        $('adminLoginArea').classList.add('hidden');
+        $('adminDashboard').classList.remove('hidden');
+
+        // Populate trip selector
+        const trips = getTripList();
+        $('adminTripSelect').innerHTML = trips.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        loadTripForEdit();
+    }
+
+    window.loadTripForEdit = function() {
+        const tripId = $('adminTripSelect').value;
+        const url = `trips/${tripId}.js`;
+        fetch(url).then(r => r.text()).then(text => {
+            $('tripEditor').value = text;
+        });
+    };
+
+    window.saveTripToGithub = function() {
+        const tripId = $('adminTripSelect').value;
+        const content = $('tripEditor').value;
+        const path = `trips/${tripId}.js`;
+        githubCommit(path, content, `Update itinerary: ${tripId}`, 'saveBtn');
+    };
+
+    window.uploadFileToGithub = function() {
+        const fileInput = $('adminFile');
+        if (fileInput.files.length === 0) return alert("Select a file first.");
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result.split(',')[1]; // Get base64
+            const path = `docs/${file.name}`;
+            githubCommit(path, content, `Upload document: ${file.name}`, 'uploadBtn', true);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    async function githubCommit(path, content, message, btnId, isBase64 = false) {
+        const btn = $(btnId);
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Committing...';
+
+        try {
+            // 1. Get current file SHA (if exists)
+            const getUrl = `https://api.github.com/repos/${adminRepo}/contents/${path}`;
+            const getRes = await fetch(getUrl, {
+                headers: { 'Authorization': `token ${adminToken}` }
+            });
+
+            let sha = '';
+            if (getRes.ok) {
+                const getData = await getRes.json();
+                sha = getData.sha;
+            }
+
+            // 2. Put file
+            const putRes = await fetch(getUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${adminToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
+                    sha: sha
+                })
+            });
+
+            if (putRes.ok) {
+                alert("Successfully saved to GitHub! It may take a minute for the live site to refresh.");
+                if (btnId === 'saveBtn') location.reload(); // Reload to see changes
+            } else {
+                const err = await putRes.json();
+                alert("Error: " + err.message);
+            }
+        } catch (e) {
+            alert("Connection error. Check your token and repo path.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
 
     // ===== INIT =====
     renderHome();
