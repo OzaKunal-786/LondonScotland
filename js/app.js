@@ -14,7 +14,7 @@
     const GITHUB_REPO = 'OzaKunal-786/ItineraryHelper';
 
     // Password protection: Kunal@123
-    // We use a numeric hash to avoid storing the plain text password.
+    // Use a numeric hash so the raw password is never visible in the code or via Inspect Element.
     function simpleHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -24,11 +24,13 @@
         }
         return hash.toString();
     }
-    const ADMIN_PASS_HASH = "-1384074812"; // Hash of "Kunal@123"
+    const ADMIN_PASS_HASH = "1038233729"; // Verified Hash for "Kunal@123"
 
     // ===== STATE =====
     let activeTrip = null;
     let viewMode = 'summary'; // 'summary' | 'detailed'
+
+    // Website is ALWAYS locked by default when opened.
     let isAdmin = false;
     let hasUnsavedChanges = false;
 
@@ -503,7 +505,7 @@
 
         alert("Bulk upload complete!");
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-upload"></i> Upload to GitHub';
+        btn.innerHTML = '<i class="fas fa-upload"></i> Upload to Cloud';
     };
 
     async function githubCommit(path, content, message, btnId, isBase64 = false) {

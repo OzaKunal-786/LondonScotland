@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Travel Planner 2026</title>
-    <!-- Favicon fix to prevent 404 -->
+    <!-- Favicon fix to prevent 404 console errors -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -57,16 +57,16 @@
             </div>
             <div class="modal-body">
                 <div id="adminLoginArea">
-                    <p class="admin-tip">Enter admin password to enable direct editing.</p>
+                    <p class="admin-tip">Enter admin password to enable editing features.</p>
                     <input type="password" id="adminPassword" placeholder="Password" class="admin-input" aria-label="Admin Password">
                     <button onclick="loginAdmin()" class="btn-admin-primary">Unlock Editor</button>
                 </div>
                 <div id="adminDashboard" class="hidden">
                     <div class="admin-section">
                         <h3>📁 Document Manager</h3>
-                        <p class="admin-subtext">Upload tickets/PDFs (Bulk supported).</p>
+                        <p class="admin-subtext">Upload tickets/PDFs in bulk.</p>
                         <input type="file" id="adminFile" class="admin-input" multiple aria-label="Select files to upload">
-                        <button onclick="uploadFilesToGithub()" id="uploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload to GitHub</button>
+                        <button onclick="uploadFilesToGithub()" id="uploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload to Cloud</button>
                     </div>
                     <hr class="admin-hr">
                     <button onclick="logoutAdmin()" class="btn-admin-outline">Lock Editor</button>
