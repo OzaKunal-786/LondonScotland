@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Travel Planner 2026</title>
-    <!-- Favicon fix to prevent console errors -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,7 +16,7 @@
         <div class="header-inner" id="headerContent"></div>
     </header>
 
-    <!-- MODALS -->
+    <!-- HACKS MODAL -->
     <div class="modal-overlay" id="hacksModal">
         <div class="modal-card">
             <div class="modal-header">
@@ -28,6 +27,7 @@
         </div>
     </div>
 
+    <!-- EMERGENCY MODAL -->
     <div class="modal-overlay" id="emergencyModal">
         <div class="modal-card">
             <div class="modal-header emergency">
@@ -38,7 +38,8 @@
         </div>
     </div>
 
-	<div class="modal-overlay" id="foodModal">
+    <!-- FOOD MODAL -->
+    <div class="modal-overlay" id="foodModal">
         <div class="modal-card">
             <div class="modal-header">
                 <h2>🍽️ Food Guide</h2>
@@ -48,22 +49,35 @@
         </div>
     </div>
 
-    <!-- TICKETS MODAL -->
+    <!-- TICKETS MODAL (per-itinerary) -->
     <div class="modal-overlay" id="ticketsModal">
-        <div class="modal-card">
+        <div class="modal-card tickets-modal-card">
             <div class="modal-header">
                 <h2 id="ticketsModalTitle">🎫 Trip Tickets</h2>
                 <button onclick="closeModal('ticketsModal')" class="modal-close"><i class="fas fa-xmark"></i></button>
             </div>
-            <div class="modal-body">
-                <!-- Quick Upload Section -->
-                <div class="ticket-upload-box">
-                    <p class="admin-subtext">Add new tickets for this trip:</p>
-                    <input type="file" id="quickTicketFile" class="admin-input" multiple aria-label="Upload tickets">
-                    <button onclick="uploadQuickTickets()" id="quickUploadBtn" class="btn-admin-primary" style="padding:10px; font-size:11px;"><i class="fas fa-plus"></i> Upload & Link to Trip</button>
+            <div class="modal-body tickets-modal-body">
+
+                <!-- Scrollable file list -->
+                <div id="ticketsContent" class="ts-scroll-area"></div>
+
+                <!-- Admin tools — fixed at bottom, hidden for non-admins -->
+                <div id="ticketAdminArea" class="ts-admin-area" style="display:none;">
+                    <div class="ts-admin-divider">
+                        <span><i class="fas fa-screwdriver-wrench"></i> Admin Tools</span>
+                    </div>
+                    <div class="ts-upload-section">
+                        <p class="admin-subtext">Upload new files and link to this trip:</p>
+                        <input type="file" id="quickTicketFile" class="admin-input" multiple aria-label="Upload files">
+                        <button onclick="uploadQuickTickets()" id="quickUploadBtn" class="btn-admin-primary">
+                            <i class="fas fa-upload"></i> Upload & Link to This Trip
+                        </button>
+                    </div>
+                    <button onclick="fetchCloudDocs()" id="syncCloudBtn" class="ts-btn-sync-cloud">
+                        <i class="fas fa-cloud-arrow-down"></i> Sync Existing Files from Cloud
+                    </button>
                 </div>
-                <hr class="admin-hr">
-                <div id="ticketsContent"></div>
+
             </div>
         </div>
     </div>
@@ -83,8 +97,8 @@
                 </div>
                 <div id="adminDashboard" class="hidden">
                     <div class="admin-section">
-                        <h3>📁 Document Manager</h3>
-                        <p class="admin-subtext">Upload tickets/PDFs in bulk.</p>
+                        <h3>📁 Bulk Upload</h3>
+                        <p class="admin-subtext">Upload multiple files to cloud at once.</p>
                         <input type="file" id="adminFile" class="admin-input" multiple aria-label="Select files to upload">
                         <button onclick="uploadFilesToGithub()" id="uploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload to Cloud</button>
                     </div>
@@ -98,7 +112,7 @@
     <!-- FLOATING SAVE BUTTON (Admin Only) -->
     <div id="adminSaveBar" class="admin-save-bar hidden">
         <div class="save-bar-inner">
-            <span>💾 You have local updates</span>
+            <span>💾 You have unsaved changes</span>
             <button onclick="syncAllChanges()" id="syncBtn" class="btn-sync"><i class="fas fa-cloud-arrow-up"></i> Save to Cloud</button>
         </div>
     </div>
