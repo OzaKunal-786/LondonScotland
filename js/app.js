@@ -14,7 +14,7 @@
     const GITHUB_REPO = 'OzaKunal-786/ItineraryHelper';
 
     // Scrambled signature for "Kunal@123"
-    const ADMIN_SIG = [148, 142, 110, 97, 108, 64, 49, 50, 51].map(x => x ^ 213).join('-');
+    const ADMIN_SIG = [158, 160, 187, 180, 185, 149, 228, 231, 230].join('-');
 
     function checkPass(input) {
         const p = (input || '').trim();
