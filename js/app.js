@@ -116,6 +116,13 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <div class="download-dropdown">
+                        <button class="btn-download" title="Download Options"><i class="fas fa-download"></i></button>
+                        <div class="dropdown-content">
+                            <button onclick="printItinerary()"><i class="fas fa-file-pdf"></i> Download PDF View</button>
+                            <button onclick="downloadJsFile()"><i class="fab fa-js"></i> Download Data (.js)</button>
+                        </div>
+                    </div>
                     <button class="btn-emergency" onclick="showEmergency()" title="Emergency"><i class="fas fa-kit-medical"></i></button>
                     <button class="btn-view-toggle" onclick="toggleViewMode()">
                         <i class="fas fa-wand-magic-sparkles"></i> <span id="viewLabel">${viewMode === 'summary' ? 'Detailed' : 'Summary'}</span>
@@ -465,6 +472,44 @@ window.showFoodGuide = function (dayNum) {
     if (label) label.textContent = viewMode === 'summary' ? 'Detailed' : 'Summary';
     window.scrollTo(0, scrollY);
 };
+
+    // ===== DOWNLOAD/PRINT =====
+    window.printItinerary = function() {
+        // Expand all days
+        document.querySelectorAll('.day-card').forEach(c => c.classList.remove('day-collapsed'));
+
+        // Force detailed view
+        const main = $('mainContainer');
+        main.classList.remove('summary-view');
+        main.classList.add('detailed-view');
+
+        // Trigger print
+        setTimeout(() => {
+            window.print();
+        }, 500); // Small delay to ensure rendering
+    };
+
+    window.downloadJsFile = function() {
+        const trip = getTrip();
+        if (!trip) return;
+        const fileName = `${trip.id}.js`;
+        const url = `trips/${fileName}`;
+
+        fetch(url)
+            .then(response => response.text())
+            .then(text => {
+                const blob = new Blob([text], { type: 'application/javascript' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(err => {
+                console.error('Failed to download JS file:', err);
+                alert('Could not download the JS file directly. You can find it in the repository under trips/' + fileName);
+            });
+    };
 
     // ===== INIT =====
     renderHome();
