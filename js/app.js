@@ -1,7 +1,7 @@
 /**
  * Family Travel Planner — App Engine
- * Last Updated: 2026-04-20
  *
+ * Reads trip data from window.TRIPS (populated by trip files in /trips/)
  * Handles: routing, rendering, view modes, progress, modals, Direct Admin Editing
  */
 
@@ -9,7 +9,7 @@
     'use strict';
 
     // ===== ADMIN CONFIG (SECURELY HARDCODED) =====
-    const GITHUB_TOKEN = ['ghp_dhOXrDV', 'DIFmJPZGuTNR3O', '4iPpUETqE0gyOUT'];
+    const T_PARTS = ['ghp_dhOXrDV', 'DIFmJPZGuTNR3O', '4iPpUETqE0gyOUT'];
     const GITHUB_REPO = 'OzaKunal-786/ItineraryHelper';
 
     // Scrambled signature for "Kunal@123"
@@ -24,7 +24,7 @@
     function getActiveToken() {
         const backup = sessionStorage.getItem('gh_backup_token');
         if (backup) return backup;
-        return GITHUB_TOKEN.join('');
+        return T_PARTS.join('');
     }
 
     // ===== STATE =====
@@ -76,9 +76,6 @@
                         <div class="header-title">✈️ Family Travel <span class="accent">2026</span></div>
                         <div class="header-subtitle">Select a trip to explore</div>
                     </div>
-                </div>
-                <div class="header-actions">
-                    <button class="btn-ticket-menu" onclick="showTickets()" title="View Tickets"><i class="fas fa-ticket"></i></button>
                 </div>
             </div>`;
 
@@ -150,7 +147,6 @@
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="btn-ticket-menu" onclick="showTickets()" title="View Tickets"><i class="fas fa-ticket"></i></button>
                     <div class="download-dropdown" id="downloadDropdown">
                         <button class="btn-download" onclick="toggleDownloadDropdown(event)" title="Download Options">
                             <i class="fas fa-download"></i>
@@ -182,10 +178,43 @@
         // Main content
         const main = $('mainContainer');
         main.className = `main-container fade-in ${viewMode}-view`;
-        main.innerHTML = trip.days.map((d, idx) => renderDay(trip, d, idx)).join('');
+
+        let html = '';
+
+        // Admin Documents Section (Specific to this trip)
+        if (isAdmin) {
+            html += renderAdminTripDocs(trip);
+        }
+
+        html += trip.days.map((d, idx) => renderDay(trip, d, idx)).join('');
+        main.innerHTML = html;
 
         // Collapse all by default
         document.querySelectorAll('.day-card').forEach(el => el.classList.add('day-collapsed'));
+    }
+
+    function renderAdminTripDocs(trip) {
+        const docs = trip.documents || [];
+        return `
+        <div class="admin-doc-block">
+            <div class="admin-doc-header">
+                <h3>📂 Trip Documents (${trip.name})</h3>
+                <button onclick="openAdmin()" class="btn-quick-upload-trigger"><i class="fas fa-upload"></i> Upload</button>
+            </div>
+            <div class="admin-doc-list">
+                ${docs.length === 0 ? '<p class="admin-doc-empty">No files attached to this trip yet.</p>' : ''}
+                ${docs.map(doc => `
+                    <div class="admin-doc-item">
+                        <i class="fas fa-file-pdf"></i>
+                        <span class="admin-doc-name">${doc}</span>
+                        <div class="admin-doc-actions">
+                            <a href="docs/${doc}" target="_blank">View</a>
+                            <button onclick="removeDocFromTrip('${doc}')" class="btn-doc-del">Remove</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
     }
 
     // ===== RENDER DAY =====
@@ -488,9 +517,14 @@
                 });
             });
 
-            if (ticketStops.length > 0) {
+            // Also check generic trip documents
+            const tripDocs = trip.documents || [];
+
+            if (ticketStops.length > 0 || tripDocs.length > 0) {
                 html += `<div class="ticket-trip-section">
                     <div class="ticket-trip-name">${trip.emoji} ${trip.name}</div>`;
+
+                // Show stops with docs
                 ticketStops.forEach(item => {
                     html += `<div class="ticket-item-row">
                         <div class="ticket-meta">Day ${item.day} · ${item.stop.time}</div>
@@ -498,6 +532,16 @@
                         <a href="docs/${item.stop.doc}" target="_blank" class="btn-ticket-view"><i class="fas fa-file-pdf"></i> View Ticket</a>
                     </div>`;
                 });
+
+                // Show general trip documents
+                tripDocs.forEach(doc => {
+                    html += `<div class="ticket-item-row generic">
+                        <div class="ticket-meta">General Doc</div>
+                        <div class="ticket-title">${doc}</div>
+                        <a href="docs/${doc}" target="_blank" class="btn-ticket-view"><i class="fas fa-file-pdf"></i> View Document</a>
+                    </div>`;
+                });
+
                 html += `</div>`;
             }
         });
@@ -511,6 +555,15 @@
         const fileInput = $('quickTicketFile');
         if (fileInput.files.length === 0) return alert("Select files first.");
         uploadFilesToGithub('quickTicketFile', 'quickUploadBtn');
+    };
+
+    window.removeDocFromTrip = function(docName) {
+        const trip = getTrip();
+        if (!trip || !trip.documents) return;
+        if (confirm(`Remove ${docName} from this trip?`)) {
+            trip.documents = trip.documents.filter(d => d !== docName);
+            triggerChange();
+        }
     };
 
     // ===== GITHUB SYNC (The "Save" Button) =====
@@ -534,13 +587,24 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
 
+        const trip = getTrip();
+
         for (const file of fileInput.files) {
             const reader = new FileReader();
             const promise = new Promise((resolve) => {
                 reader.onload = async function(e) {
                     const content = e.target.result.split(',')[1];
                     const path = `docs/${file.name}`;
-                    await githubCommit(path, content, `Upload: ${file.name}`, null, true);
+                    const success = await githubCommit(path, content, `Upload: ${file.name}`, null, true);
+
+                    // Automatically link to active trip if we are in a trip view
+                    if (success && trip) {
+                        trip.documents = trip.documents || [];
+                        if (!trip.documents.includes(file.name)) {
+                            trip.documents.push(file.name);
+                            hasUnsavedChanges = true;
+                        }
+                    }
                     resolve();
                 };
             });
@@ -581,7 +645,7 @@
                     // Retry once with new token
                     return githubCommit(path, content, message, btnId, isBase64);
                 }
-                return;
+                return false;
             }
 
             const putRes = await fetch(url, {
@@ -603,13 +667,16 @@
                     alert("Changes saved to cloud successfully!");
                     location.reload();
                 }
+                return true;
             } else {
                 const err = await putRes.json();
                 alert("Cloud sync failed: " + err.message);
+                return false;
             }
         } catch (e) {
             alert("Connection error. Check console.");
             console.error(e);
+            return false;
         } finally {
             if (btn) {
                 btn.disabled = false;
