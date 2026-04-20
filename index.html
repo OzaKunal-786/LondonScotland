@@ -50,34 +50,34 @@
     <div class="modal-overlay" id="adminModal">
         <div class="modal-card admin-modal">
             <div class="modal-header">
-                <h2>🔐 Admin Panel</h2>
+                <h2>🔐 Admin Access</h2>
                 <button onclick="closeModal('adminModal')" class="modal-close"><i class="fas fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div id="adminLoginArea">
-                    <p class="admin-tip">Enter your GitHub Personal Access Token to manage files.</p>
-                    <input type="password" id="adminToken" placeholder="GitHub Token (classic)" class="admin-input">
-                    <input type="text" id="adminRepo" placeholder="username/repo-name" class="admin-input">
-                    <button onclick="loginAdmin()" class="btn-admin-primary">Login / Connect</button>
+                    <p class="admin-tip">Enter admin password to enable direct editing.</p>
+                    <input type="password" id="adminPassword" placeholder="Password" class="admin-input">
+                    <button onclick="loginAdmin()" class="btn-admin-primary">Unlock Editor</button>
                 </div>
                 <div id="adminDashboard" class="hidden">
                     <div class="admin-section">
-                        <h3>📝 Edit Itinerary</h3>
-                        <p class="admin-subtext">Edits will be committed to GitHub directly.</p>
-                        <select id="adminTripSelect" class="admin-input" onchange="loadTripForEdit()"></select>
-                        <textarea id="tripEditor" class="admin-textarea" spellcheck="false"></textarea>
-                        <button onclick="saveTripToGithub()" id="saveBtn" class="btn-admin-primary"><i class="fas fa-save"></i> Save Changes</button>
+                        <h3>📁 Document Manager</h3>
+                        <p class="admin-subtext">Upload tickets/PDFs (Bulk supported).</p>
+                        <input type="file" id="adminFile" class="admin-input" multiple>
+                        <button onclick="uploadFilesToGithub()" id="uploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload to GitHub</button>
                     </div>
                     <hr class="admin-hr">
-                    <div class="admin-section">
-                        <h3>📂 Upload Document</h3>
-                        <p class="admin-subtext">Upload tickets/PDFs to the 'docs/' folder.</p>
-                        <input type="file" id="adminFile" class="admin-input">
-                        <button onclick="uploadFileToGithub()" id="uploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload to GitHub</button>
-                    </div>
-                    <button onclick="logoutAdmin()" class="btn-admin-outline">Logout</button>
+                    <button onclick="logoutAdmin()" class="btn-admin-outline">Lock Editor</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- FLOATING SAVE BUTTON (Admin Only) -->
+    <div id="adminSaveBar" class="admin-save-bar hidden">
+        <div class="save-bar-inner">
+            <span>⚠️ You have unsaved changes</span>
+            <button onclick="syncAllChanges()" id="syncBtn" class="btn-sync"><i class="fas fa-cloud-arrow-up"></i> Sync to GitHub</button>
         </div>
     </div>
 

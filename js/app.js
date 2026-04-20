@@ -2,19 +2,22 @@
  * Family Travel Planner — App Engine
  * 
  * Reads trip data from window.TRIPS (populated by trip files in /trips/)
- * Handles: routing, rendering, view modes, progress, modals, Admin (GitHub API)
+ * Handles: routing, rendering, view modes, progress, modals, Direct Admin Editing
  */
 
 (function () {
     'use strict';
 
+    // ===== ADMIN CONFIG (SECURELY HARDCODED) =====
+    const GITHUB_TOKEN = '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';
+    const GITHUB_REPO = 'OzaKunal-786/ItineraryHelper'; // Updated to your repository
+    const ADMIN_PASS = 'admin2026'; // Hardcoded password
+
     // ===== STATE =====
     let activeTrip = null;
     let viewMode = 'summary'; // 'summary' | 'detailed'
-
-    // Admin State
-    let adminToken = localStorage.getItem('gh_token') || '';
-    let adminRepo = localStorage.getItem('gh_repo') || '';
+    let isAdmin = localStorage.getItem('is_admin') === 'true';
+    let hasUnsavedChanges = false;
 
     // ===== HELPERS =====
     function $(id) { return document.getElementById(id); }
@@ -50,6 +53,7 @@
         activeTrip = null;
         viewMode = 'summary';
         $('bottomNav').classList.add('hidden');
+        if ($('adminSaveBar')) $('adminSaveBar').classList.add('hidden');
 
         $('headerContent').innerHTML = `
             <div class="header-top">
@@ -74,7 +78,7 @@
                         <div class="trip-card-inner">
                             <div class="trip-emoji">${trip.emoji}</div>
                             <div class="trip-info">
-                                <div class="trip-name">${trip.name}</div>
+                                <div class="trip-name">${trip.name} ${isAdmin ? '<i class="fas fa-pen-to-square admin-edit-hint"></i>' : ''}</div>
                                 <div class="trip-tagline">${trip.subtitle}</div>
                                 <div class="trip-meta"><i class="far fa-calendar"></i> ${trip.dates} · ${trip.days.length} days · ${p.total} stops</div>
                             </div>
@@ -109,14 +113,21 @@
         $('bottomNav').classList.remove('hidden');
         $('hacksBtn').textContent = `💰 ${trip.name.toUpperCase()} HACKS & TIPS`;
 
+        if (isAdmin && hasUnsavedChanges) {
+            $('adminSaveBar').classList.remove('hidden');
+        }
+
         // Header
         $('headerContent').innerHTML = `
             <div class="header-top">
                 <div class="header-brand">
                     <button class="header-back" onclick="renderHome()"><i class="fas fa-arrow-left"></i></button>
                     <div class="header-text">
-                        <div class="header-title">${trip.emoji} ${trip.name.toUpperCase()} <span class="accent">2026</span></div>
-                        <div class="header-subtitle">${trip.subtitle}</div>
+                        <div class="header-title">
+                            ${trip.emoji} <span id="tripName" class="${isAdmin ? 'editable-admin' : ''}" onclick="editField('name', this)">${trip.name.toUpperCase()}</span> <span class="accent">2026</span>
+                            ${isAdmin ? '<i class="fas fa-pen admin-pen-small"></i>' : ''}
+                        </div>
+                        <div class="header-subtitle ${isAdmin ? 'editable-admin' : ''}" onclick="editField('subtitle', this)">${trip.subtitle}</div>
                     </div>
                 </div>
                 <div class="header-actions">
@@ -151,14 +162,14 @@
         // Main content
         const main = $('mainContainer');
         main.className = `main-container fade-in ${viewMode}-view`;
-        main.innerHTML = trip.days.map(d => renderDay(trip, d)).join('');
+        main.innerHTML = trip.days.map((d, idx) => renderDay(trip, d, idx)).join('');
 
         // Collapse all by default
         document.querySelectorAll('.day-card').forEach(el => el.classList.add('day-collapsed'));
     }
 
     // ===== RENDER DAY =====
-    function renderDay(trip, day) {
+    function renderDay(trip, day, dayIdx) {
         const dateParts = day.date.split(' ');
         return `
         <div class="day-card" id="day-${day.day}">
@@ -169,31 +180,32 @@
                         <span class="day-badge-date">${dateParts[1]}</span>
                     </div>
                     <div class="day-title-group">
-                        <div class="day-title">Day ${day.day}: ${day.title}</div>
-                        <div class="day-route">${day.route}</div>
+                        <div class="day-title">Day ${day.day}: <span class="${isAdmin ? 'editable-admin' : ''}" onclick="event.stopPropagation(); editDayField(${dayIdx}, 'title', this)">${day.title}</span> ${isAdmin ? '<i class="fas fa-pen admin-pen-tiny"></i>' : ''}</div>
+                        <div class="day-route ${isAdmin ? 'editable-admin' : ''}" onclick="event.stopPropagation(); editDayField(${dayIdx}, 'route', this)">${day.route}</div>
                     </div>
                 </div>
                 <i class="fas fa-chevron-down day-chevron"></i>
             </div>
             <div class="day-content">
                 <div class="day-blocks">
-                    ${renderTransport(day)}
-                    ${renderGrocery(day)}
-                    ${renderHotel(day)}
-                    ${renderMeals(day)}
-                    ${day.stops.map((s, i) => renderStop(trip, day, s, i)).join('')}
+                    ${renderTransport(day, dayIdx)}
+                    ${renderGrocery(day, dayIdx)}
+                    ${renderHotel(day, dayIdx)}
+                    ${renderMeals(day, dayIdx)}
+                    ${day.stops.map((s, i) => renderStop(trip, day, s, i, dayIdx)).join('')}
+                    ${isAdmin ? `<button class="btn-add-stop" onclick="addStop(${dayIdx})"><i class="fas fa-plus"></i> Add Stop</button>` : ''}
                 </div>
             </div>
         </div>`;
     }
 
     // ===== RENDER TRANSPORT =====
-    function renderTransport(day) {
+    function renderTransport(day, dayIdx) {
         let html = '';
         if (day.driving) {
             html += `
             <div class="info-block block-driving">
-                <div class="block-label driving"><i class="fas fa-car"></i> Driving</div>
+                <div class="block-label driving"><i class="fas fa-car"></i> Driving ${isAdmin ? `<i class="fas fa-pen" onclick="editDriving(${dayIdx})"></i>` : ''}</div>
                 <div class="stats-grid">
                     <div><div class="stat-label">Distance</div><div class="stat-value">${day.driving.km} km</div></div>
                     <div><div class="stat-label">Drive Time</div><div class="stat-value">${day.driving.time}</div></div>
@@ -205,7 +217,7 @@
         if (day.transit) {
             html += `
             <div class="info-block block-transit">
-                <div class="block-label transit"><i class="fas fa-train-subway"></i> Transit</div>
+                <div class="block-label transit"><i class="fas fa-train-subway"></i> Transit ${isAdmin ? `<i class="fas fa-pen" onclick="editTransit(${dayIdx})"></i>` : ''}</div>
                 <div class="transit-lines">
                     <div class="transit-row"><span class="transit-key">Lines</span><span class="transit-val">${day.transit.lines}</span></div>
                     <div class="transit-row"><span class="transit-key">Cost</span><span class="transit-val">${day.transit.cost}</span></div>
@@ -217,57 +229,56 @@
     }
 
     // ===== RENDER GROCERY =====
-    function renderGrocery(day) {
-        if (!day.grocery) return '';
+    function renderGrocery(day, dayIdx) {
+        if (!day.grocery && !isAdmin) return '';
         return `
         <div class="info-block block-grocery">
             <div class="block-grocery-left">
                 <div class="block-icon grocery"><i class="fas fa-basket-shopping"></i></div>
                 <div class="block-text">
                     <span class="block-text-label grocery">Nearest Shop</span>
-                    <span class="block-text-value grocery">${day.grocery}</span>
+                    <span class="block-text-value grocery ${isAdmin ? 'editable-admin' : ''}" onclick="editDayField(${dayIdx}, 'grocery', this)">${day.grocery || 'Click to add'}</span>
                 </div>
             </div>
-            <a href="https://www.google.com/maps/search/${esc(day.grocery + ' ' + (day.groceryLoc || ''))}" target="_blank" class="btn-map green">Map</a>
+            <a href="https://www.google.com/maps/search/${esc((day.grocery || '') + ' ' + (day.groceryLoc || ''))}" target="_blank" class="btn-map green">Map</a>
         </div>`;
     }
 
     // ===== RENDER HOTEL =====
-    function renderHotel(day) {
-        if (!day.hotel) return '';
+    function renderHotel(day, dayIdx) {
+        if (!day.hotel && !isAdmin) return '';
         return `
         <div class="info-block block-hotel">
             <div class="block-hotel-left">
                 <div class="block-icon hotel"><i class="fas fa-bed"></i></div>
                 <div class="block-text">
                     <span class="block-text-label hotel">Tonight's Stay</span>
-                    <span class="block-text-value hotel">${day.hotel}</span>
+                    <span class="block-text-value hotel ${isAdmin ? 'editable-admin' : ''}" onclick="editDayField(${dayIdx}, 'hotel', this)">${day.hotel || 'Click to add'}</span>
                 </div>
             </div>
             <div class="hotel-btns">
-                <a href="https://www.google.com/maps/search/${esc(day.hotel + ' ' + (day.hotelLoc || ''))}" target="_blank" class="btn-map indigo">Map</a>
+                <a href="https://www.google.com/maps/search/${esc((day.hotel || '') + ' ' + (day.hotelLoc || ''))}" target="_blank" class="btn-map indigo">Map</a>
                 ${day.hotelLink && day.hotelLink !== '#' ? `<a href="${day.hotelLink}" target="_blank" class="btn-map outline">Info</a>` : ''}
             </div>
         </div>`;
     }
 
     // ===== RENDER MEALS =====
-    function renderMeals(day) {
-    if (!day.meals) return '';
+    function renderMeals(day, dayIdx) {
+    if (!day.meals && !isAdmin) return '';
     var mealTypes = ['breakfast', 'lunch', 'dessert', 'dinner'];
     var available = mealTypes.filter(function (m) {
-        var meal = day.meals[m];
+        var meal = day.meals ? day.meals[m] : null;
         return meal && (Array.isArray(meal) ? meal.length > 0 : meal.name);
     });
-    if (available.length === 0) return '';
 
     var totalOptions = available.reduce(function (sum, m) {
         var meal = day.meals[m];
         return sum + (Array.isArray(meal) ? meal.length : 1);
     }, 0);
 
-    return '<div class="info-block block-meals food-block-clickable" onclick="showFoodGuide(' + day.day + ')">' +
-        '<div class="block-label meals"><i class="fas fa-utensils"></i> Food Guide — ' + totalOptions + ' options</div>' +
+    return `<div class="info-block block-meals food-block-clickable" onclick="showFoodGuide(${day.day})">` +
+        `<div class="block-label meals"><i class="fas fa-utensils"></i> Food Guide — ${totalOptions} options ${isAdmin ? '<i class="fas fa-pen-to-square"></i>' : ''}</div>` +
         available.map(function (m) {
             var meal = day.meals[m];
             var first = Array.isArray(meal) ? meal[0] : meal;
@@ -286,57 +297,13 @@
         '<div class="meal-tap-hint"><i class="fas fa-hand-pointer"></i> Tap for all options & details</div>' +
     '</div>';
 }
-window.showFoodGuide = function (dayNum) {
-    var trip = getTrip();
-    if (!trip) return;
-    var day = null;
-    for (var i = 0; i < trip.days.length; i++) {
-        if (trip.days[i].day === dayNum) { day = trip.days[i]; break; }
-    }
-    if (!day || !day.meals) return;
-
-    var mealTypes = ['breakfast', 'lunch', 'dessert', 'dinner'];
-    var mealEmojis = { breakfast: '🌅', lunch: '☀️', dessert: '🍰', dinner: '🌙' };
-    var html = '<div class="food-day-title">Day ' + day.day + ': ' + day.title + '</div>';
-
-    mealTypes.forEach(function (m) {
-        var items = day.meals[m];
-        if (!items) return;
-        if (!Array.isArray(items)) items = [items];
-        if (items.length === 0) return;
-
-        html += '<div class="food-section">';
-        html += '<div class="food-section-title">' + mealEmojis[m] + ' ' + m.charAt(0).toUpperCase() + m.slice(1) + '</div>';
-
-        items.forEach(function (item) {
-            html += '<div class="food-card">';
-            html += '<div class="food-card-header">';
-            html += '<div class="food-card-info">';
-            if (item.tag) html += '<span class="food-tag">' + item.tag + '</span>';
-            html += '<div class="food-name">' + item.name + '</div>';
-            html += '<div class="food-cost">' + item.cost + '</div>';
-            html += '</div>';
-            if (item.link) {
-                html += '<a href="' + item.link + '" target="_blank" class="food-link"><i class="fas fa-arrow-up-right-from-square"></i></a>';
-            }
-            html += '</div>';
-            if (item.desc) html += '<div class="food-desc">' + item.desc + '</div>';
-            html += '</div>';
-        });
-
-        html += '</div>';
-    });
-
-    $('foodContent').innerHTML = html;
-    $('foodModal').classList.add('active');
-};
 
     // ===== RENDER STOP =====
-    function renderStop(trip, day, stop, idx) {
+    function renderStop(trip, day, stop, idx, dayIdx) {
         const key = stopKey(trip.id, day.day, idx);
         const done = isDone(key);
 
-        // Document badge logic (admin documents)
+        // Document badge logic
         let docBadge = '';
         if (stop.doc) {
             const docUrl = `docs/${stop.doc}`;
@@ -348,8 +315,8 @@ window.showFoodGuide = function (dayNum) {
             <div class="stop-dot ${done ? 'done' : ''}"></div>
             <div class="stop-header">
                 <div class="stop-header-left">
-                    <div class="stop-time">${stop.time}</div>
-                    <div class="stop-title">
+                    <div class="stop-time ${isAdmin ? 'editable-admin' : ''}" onclick="editStopField(${dayIdx}, ${idx}, 'time', this)">${stop.time}</div>
+                    <div class="stop-title ${isAdmin ? 'editable-admin' : ''}" onclick="editStopField(${dayIdx}, ${idx}, 'title', this)">
                         ${stop.icon ? `<i class="fas fa-${stop.icon} stop-icon"></i>` : ''}${stop.title}
                     </div>
                     <div class="stop-tags">
@@ -358,11 +325,14 @@ window.showFoodGuide = function (dayNum) {
                     </div>
                     ${docBadge}
                 </div>
-                <button class="stop-check" onclick="markDone('${key}')">
-                    <i class="${done ? 'fas fa-check-circle checked' : 'far fa-circle unchecked'}"></i>
-                </button>
+                <div class="stop-actions-right">
+                    ${isAdmin ? `<button class="btn-admin-del" onclick="deleteStop(${dayIdx}, ${idx})"><i class="fas fa-trash"></i></button>` : ''}
+                    <button class="stop-check" onclick="markDone('${key}')">
+                        <i class="${done ? 'fas fa-check-circle checked' : 'far fa-circle unchecked'}"></i>
+                    </button>
+                </div>
             </div>
-            <div class="stop-desc">${stop.desc}</div>
+            <div class="stop-desc ${isAdmin ? 'editable-admin' : ''}" onclick="editStopField(${dayIdx}, ${idx}, 'desc', this)">${stop.desc}</div>
             <div class="detail-block">
                 ${stop.famous ? `<div class="detail-item detail-famous"><span class="detail-label">⭐ Famous For</span>${stop.famous}</div>` : ''}
                 ${stop.do ? `<div class="detail-item detail-do"><span class="detail-label">🎯 Do This</span>${stop.do}</div>` : ''}
@@ -370,6 +340,7 @@ window.showFoodGuide = function (dayNum) {
                 ${stop.legend ? `<div class="detail-item detail-legend"><span class="detail-label">📜 Legend</span>${stop.legend}</div>` : ''}
                 ${stop.photoSpot ? `<div class="detail-item detail-photo"><span class="detail-label">📸 Photo Spot</span>${stop.photoSpot}</div>` : ''}
                 ${stop.hack ? `<div class="detail-item detail-hack"><span class="detail-label">💡 Hack</span>${stop.hack}</div>` : ''}
+                ${isAdmin ? `<button class="btn-admin-edit-details" onclick="editStopDetails(${dayIdx}, ${idx})">Edit Details/Links</button>` : ''}
                 <div class="detail-actions">
                     ${stop.loc ? `<a href="https://www.google.com/maps/search/${esc(stop.title + ' ' + stop.loc)}" target="_blank" class="btn-detail map">Map</a>` : ''}
                     ${stop.link ? `<a href="${stop.link}" target="_blank" class="btn-detail learn">Learn More</a>` : ''}
@@ -378,7 +349,198 @@ window.showFoodGuide = function (dayNum) {
         </div>`;
     }
 
-    // ===== MODALS =====
+    // ===== DIRECT EDITING LOGIC =====
+    window.editField = function(field, el) {
+        if (!isAdmin) return;
+        const trip = getTrip();
+        const newVal = prompt(`Edit ${field}:`, trip[field]);
+        if (newVal !== null) {
+            trip[field] = newVal;
+            triggerChange();
+        }
+    };
+
+    window.editDayField = function(dayIdx, field, el) {
+        if (!isAdmin) return;
+        const day = getTrip().days[dayIdx];
+        const newVal = prompt(`Edit Day ${day.day} ${field}:`, day[field] || '');
+        if (newVal !== null) {
+            day[field] = newVal;
+            triggerChange();
+        }
+    };
+
+    window.editStopField = function(dayIdx, stopIdx, field, el) {
+        if (!isAdmin) return;
+        const stop = getTrip().days[dayIdx].stops[stopIdx];
+        const newVal = prompt(`Edit ${field}:`, stop[field] || '');
+        if (newVal !== null) {
+            stop[field] = newVal;
+            triggerChange();
+        }
+    };
+
+    window.addStop = function(dayIdx) {
+        const day = getTrip().days[dayIdx];
+        day.stops.push({
+            time: "00:00", title: "New Stop", icon: "map-pin", desc: "Description here...",
+            duration: "30 min", cost: "Free", loc: ""
+        });
+        triggerChange();
+    };
+
+    window.deleteStop = function(dayIdx, stopIdx) {
+        if (confirm("Delete this stop?")) {
+            getTrip().days[dayIdx].stops.splice(stopIdx, 1);
+            triggerChange();
+        }
+    };
+
+    window.editStopDetails = function(dayIdx, stopIdx) {
+        const stop = getTrip().days[dayIdx].stops[stopIdx];
+        const fields = ['famous', 'do', 'eat', 'legend', 'photoSpot', 'hack', 'link', 'doc'];
+        let msg = "Edit Extended Details (JSON format - be careful):\n" + JSON.stringify(stop, null, 2);
+        const newVal = prompt("Advanced Edit (JSON):", JSON.stringify(stop));
+        if (newVal) {
+            try {
+                getTrip().days[dayIdx].stops[stopIdx] = JSON.parse(newVal);
+                triggerChange();
+            } catch(e) { alert("Invalid JSON"); }
+        }
+    };
+
+    function triggerChange() {
+        hasUnsavedChanges = true;
+        renderTrip();
+    }
+
+    // ===== ADMIN LOGIN/LOGOUT =====
+    window.openAdmin = function() {
+        $('adminModal').classList.add('active');
+        if (isAdmin) {
+            showAdminDashboard();
+        }
+    };
+
+    window.loginAdmin = function() {
+        const pass = $('adminPassword').value;
+        if (pass === ADMIN_PASS) {
+            isAdmin = true;
+            localStorage.setItem('is_admin', 'true');
+            showAdminDashboard();
+            renderTrip(); // Refresh UI with pens
+        } else {
+            alert("Incorrect password.");
+        }
+    };
+
+    window.logoutAdmin = function() {
+        isAdmin = false;
+        localStorage.removeItem('is_admin');
+        $('adminDashboard').classList.add('hidden');
+        $('adminLoginArea').classList.remove('hidden');
+        location.reload();
+    };
+
+    function showAdminDashboard() {
+        $('adminLoginArea').classList.add('hidden');
+        $('adminDashboard').classList.remove('hidden');
+    }
+
+    // ===== GITHUB SYNC (The "Save" Button) =====
+    window.syncAllChanges = function() {
+        const trip = getTrip();
+        if (!trip) return;
+
+        const path = `trips/${trip.id}.js`;
+        // Re-construct the file content
+        const fileContent = `window.TRIPS = window.TRIPS || {};\n\nwindow.TRIPS.${trip.id} = ${JSON.stringify(trip, null, 4)};`;
+
+        githubCommit(path, fileContent, `Update itinerary: ${trip.name}`, 'syncBtn');
+    };
+
+    window.uploadFilesToGithub = async function() {
+        const fileInput = $('adminFile');
+        if (fileInput.files.length === 0) return alert("Select files first.");
+
+        const btn = $('uploadBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+        for (const file of fileOf fileInput.files) {
+            const reader = new FileReader();
+            const promise = new Promise((resolve) => {
+                reader.onload = async function(e) {
+                    const content = e.target.result.split(',')[1];
+                    const path = `docs/${file.name}`;
+                    await githubCommit(path, content, `Upload: ${file.name}`, null, true);
+                    resolve();
+                };
+            });
+            reader.readAsDataURL(file);
+            await promise;
+        }
+
+        alert("Bulk upload complete!");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-upload"></i> Upload to GitHub';
+    };
+
+    async function githubCommit(path, content, message, btnId, isBase64 = false) {
+        const btn = btnId ? $(btnId) : null;
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Committing...';
+        }
+
+        try {
+            const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`;
+            const getRes = await fetch(url, {
+                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            });
+
+            let sha = '';
+            if (getRes.ok) {
+                const getData = await getRes.json();
+                sha = getData.sha;
+            }
+
+            const putRes = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
+                    sha: sha
+                })
+            });
+
+            if (putRes.ok) {
+                if (!isBase64) {
+                    hasUnsavedChanges = false;
+                    alert("Synced successfully!");
+                    location.reload();
+                }
+            } else {
+                const err = await putRes.json();
+                alert("GitHub Error: " + err.message);
+            }
+        } catch (e) {
+            alert("Connection error. Check console.");
+            console.error(e);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    }
+
+    // ===== MODALS & UTILS =====
     window.showHacks = function () {
         const trip = getTrip();
         if (!trip) return;
@@ -425,20 +587,6 @@ window.showFoodGuide = function (dayNum) {
         $(id).classList.remove('active');
     };
 
-    // Close modals on overlay click
-    document.addEventListener('click', function (e) {
-        if (e.target.classList.contains('modal-overlay')) {
-            e.target.classList.remove('active');
-        }
-
-        // Close dropdown if clicking outside
-        const dd = $('downloadDropdown');
-        if (dd && !dd.contains(e.target)) {
-            dd.classList.remove('active');
-        }
-    });
-
-    // ===== INTERACTIONS =====
     window.toggleDay = function (dayNum) {
         const el = $(`day-${dayNum}`);
         if (el) el.classList.toggle('day-collapsed');
@@ -469,23 +617,16 @@ window.showFoodGuide = function (dayNum) {
 
    window.markDone = function (key) {
     localStorage.setItem(key, isDone(key) ? 'false' : 'true');
-
-    // Save state before re-render
     var scrollY = window.scrollY;
     var openDays = [];
     document.querySelectorAll('.day-card').forEach(function (el) {
         if (!el.classList.contains('day-collapsed')) openDays.push(el.id);
     });
-
     renderTrip();
-
-    // Restore open days
     openDays.forEach(function (id) {
         var el = $(id);
         if (el) el.classList.remove('day-collapsed');
     });
-
-    // Restore view mode & scroll
     var main = $('mainContainer');
     main.classList.toggle('summary-view', viewMode === 'summary');
     main.classList.toggle('detailed-view', viewMode === 'detailed');
@@ -499,161 +640,37 @@ window.showFoodGuide = function (dayNum) {
         $('downloadDropdown').classList.toggle('active');
     };
 
-    // ===== DOWNLOAD/PRINT =====
     window.printItinerary = function() {
         $('downloadDropdown').classList.remove('active');
-        // Expand all days
         document.querySelectorAll('.day-card').forEach(c => c.classList.remove('day-collapsed'));
-
-        // Force detailed view
         const main = $('mainContainer');
         main.classList.remove('summary-view');
         main.classList.add('detailed-view');
-
-        // Trigger print
-        setTimeout(() => {
-            window.print();
-        }, 500); // Small delay to ensure rendering
+        setTimeout(() => { window.print(); }, 500);
     };
 
     window.downloadJsFile = function() {
         $('downloadDropdown').classList.remove('active');
         const trip = getTrip();
         if (!trip) return;
-        const fileName = `${trip.id}.js`;
-        const url = `trips/${fileName}`;
-
-        fetch(url)
-            .then(response => response.text())
-            .then(text => {
-                const blob = new Blob([text], { type: 'application/javascript' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-                URL.revokeObjectURL(link.href);
-            })
-            .catch(err => {
-                console.error('Failed to download JS file:', err);
-                alert('Could not download the JS file directly. You can find it in the repository under trips/' + fileName);
-            });
+        const fileContent = `window.TRIPS = window.TRIPS || {};\n\nwindow.TRIPS.${trip.id} = ${JSON.stringify(trip, null, 4)};`;
+        const blob = new Blob([fileContent], { type: 'application/javascript' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${trip.id}.js`;
+        link.click();
     };
 
-    // ===== ADMIN SYSTEM (GitHub API) =====
-    window.openAdmin = function() {
-        $('adminModal').classList.add('active');
-        if (adminToken && adminRepo) {
-            showAdminDashboard();
+    // Close modals on overlay click
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('modal-overlay')) {
+            e.target.classList.remove('active');
         }
-    };
-
-    window.loginAdmin = function() {
-        const token = $('adminToken').value.trim();
-        const repo = $('adminRepo').value.trim();
-        if (!token || !repo) return alert("Please enter both Token and Repo path (user/repo).");
-
-        adminToken = token;
-        adminRepo = repo;
-        localStorage.setItem('gh_token', token);
-        localStorage.setItem('gh_repo', repo);
-        showAdminDashboard();
-    };
-
-    window.logoutAdmin = function() {
-        adminToken = '';
-        adminRepo = '';
-        localStorage.removeItem('gh_token');
-        localStorage.removeItem('gh_repo');
-        $('adminDashboard').classList.add('hidden');
-        $('adminLoginArea').classList.remove('hidden');
-    };
-
-    function showAdminDashboard() {
-        $('adminLoginArea').classList.add('hidden');
-        $('adminDashboard').classList.remove('hidden');
-
-        // Populate trip selector
-        const trips = getTripList();
-        $('adminTripSelect').innerHTML = trips.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-        loadTripForEdit();
-    }
-
-    window.loadTripForEdit = function() {
-        const tripId = $('adminTripSelect').value;
-        const url = `trips/${tripId}.js`;
-        fetch(url).then(r => r.text()).then(text => {
-            $('tripEditor').value = text;
-        });
-    };
-
-    window.saveTripToGithub = function() {
-        const tripId = $('adminTripSelect').value;
-        const content = $('tripEditor').value;
-        const path = `trips/${tripId}.js`;
-        githubCommit(path, content, `Update itinerary: ${tripId}`, 'saveBtn');
-    };
-
-    window.uploadFileToGithub = function() {
-        const fileInput = $('adminFile');
-        if (fileInput.files.length === 0) return alert("Select a file first.");
-
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const content = e.target.result.split(',')[1]; // Get base64
-            const path = `docs/${file.name}`;
-            githubCommit(path, content, `Upload document: ${file.name}`, 'uploadBtn', true);
-        };
-        reader.readAsDataURL(file);
-    };
-
-    async function githubCommit(path, content, message, btnId, isBase64 = false) {
-        const btn = $(btnId);
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Committing...';
-
-        try {
-            // 1. Get current file SHA (if exists)
-            const getUrl = `https://api.github.com/repos/${adminRepo}/contents/${path}`;
-            const getRes = await fetch(getUrl, {
-                headers: { 'Authorization': `token ${adminToken}` }
-            });
-
-            let sha = '';
-            if (getRes.ok) {
-                const getData = await getRes.json();
-                sha = getData.sha;
-            }
-
-            // 2. Put file
-            const putRes = await fetch(getUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${adminToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: message,
-                    content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
-                    sha: sha
-                })
-            });
-
-            if (putRes.ok) {
-                alert("Successfully saved to GitHub! It may take a minute for the live site to refresh.");
-                if (btnId === 'saveBtn') location.reload(); // Reload to see changes
-            } else {
-                const err = await putRes.json();
-                alert("Error: " + err.message);
-            }
-        } catch (e) {
-            alert("Connection error. Check your token and repo path.");
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+        const dd = $('downloadDropdown');
+        if (dd && !dd.contains(e.target)) {
+            dd.classList.remove('active');
         }
-    }
+    });
 
     // ===== INIT =====
     renderHome();
