@@ -9,9 +9,9 @@
     'use strict';
 
     // ===== ADMIN CONFIG =====
-    const T_PARTS = ['ghp_dhOXrDV', 'DIFmJPZGuTNR3O', '4iPpUETqE0gyOUT'];
     const GITHUB_REPO = 'OzaKunal-786/ItineraryHelper';
 
+    // The signature for the unlock password
     const ADMIN_SIG = [158, 160, 187, 180, 185, 149, 228, 231, 230].join('-');
 
     function checkPass(input) {
@@ -20,10 +20,19 @@
         return inputSig === ADMIN_SIG;
     }
 
+    /**
+     * Get the GitHub token from storage.
+     * If not found, prompt the user (admin only).
+     */
     function getActiveToken() {
-        const backup = sessionStorage.getItem('gh_backup_token');
-        if (backup) return backup;
-        return T_PARTS.join('');
+        let token = localStorage.getItem('gh_sync_token');
+        if (!token) {
+            token = prompt('🔒 Admin Setup: Enter your GitHub Personal Access Token.\n(You only need to do this once per browser)');
+            if (token) {
+                localStorage.setItem('gh_sync_token', token.trim());
+            }
+        }
+        return token;
     }
 
     // ===== STATE =====
@@ -730,7 +739,7 @@
 
             // Determine which files are not yet linked
             const linkedInStops = [];
-            trip.forEach(function (d) {
+            trip.days.forEach(function (d) {
                 d.stops.forEach(function (s) { if (s.doc) linkedInStops.push(s.doc); });
             });
             const alreadyLinked = (trip.documents || []).concat(linkedInStops);
@@ -847,9 +856,10 @@
             if (getRes.ok) {
                 sha = (await getRes.json()).sha;
             } else if (getRes.status === 401) {
+                localStorage.removeItem('gh_sync_token');
                 const newToken = prompt('⚠️ Cloud auth failed.\nEnter a new GitHub Personal Access Token:');
                 if (newToken) {
-                    sessionStorage.setItem('gh_backup_token', newToken.trim());
+                    localStorage.setItem('gh_sync_token', newToken.trim());
                     return githubCommit(path, content, message, btnId, isBase64);
                 }
                 return false;
