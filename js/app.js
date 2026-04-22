@@ -537,7 +537,9 @@
             const path = 'trips/' + file.name;
             const success = await githubCommit(path, content, 'Upload new trip: ' + file.name, null, true);
             if (success) {
-                alert('Trip uploaded successfully! Reloading...');
+                // Automatically register the trip in index.html
+                await registerTripInIndex(file.name);
+                alert('Trip uploaded and registered successfully! Reloading...');
                 location.reload();
             } else {
                 btn.disabled = false;
@@ -546,6 +548,34 @@
         };
         reader.readAsDataURL(file);
     };
+
+    /**
+     * Admin tool: Programmatically edits index.html to include a new trip script tag.
+     */
+    async function registerTripInIndex(filename) {
+        const token = getActiveToken();
+        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/index.html`;
+
+        try {
+            const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+            if (!res.ok) return false;
+            const data = await res.json();
+            // Correctly decode Unicode from base64
+            const currentHtml = decodeURIComponent(escape(atob(data.content)));
+
+            const scriptTag = `<script src="trips/${filename}"></script>`;
+            if (currentHtml.includes(scriptTag)) return true; // Already registered
+
+            const marker = '<!-- TRIP DATA FILES -->';
+            if (currentHtml.includes(marker)) {
+                const newHtml = currentHtml.replace(marker, marker + '\n    ' + scriptTag);
+                return await githubCommit('index.html', newHtml, `Register trip: ${filename}`, null, false);
+            }
+        } catch (e) {
+            console.error("Failed to auto-register trip in index.html", e);
+        }
+        return false;
+    }
 
     // ===== TICKETS MODAL (per-itinerary) =====
 
@@ -700,7 +730,7 @@
 
             // Determine which files are not yet linked
             const linkedInStops = [];
-            trip.days.forEach(function (d) {
+            trip.forEach(function (d) {
                 d.stops.forEach(function (s) { if (s.doc) linkedInStops.push(s.doc); });
             });
             const alreadyLinked = (trip.documents || []).concat(linkedInStops);
