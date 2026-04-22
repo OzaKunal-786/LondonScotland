@@ -94,6 +94,18 @@
                     </div>`;
                 }).join('')}
             </div>
+            ${isAdmin ? `
+            <div class="home-admin-actions">
+                <h3><i class="fas fa-screwdriver-wrench"></i> Admin Dashboard</h3>
+                <div class="admin-home-btns">
+                    <button onclick="downloadTemplate()" class="btn-admin-outline"><i class="fas fa-file-code"></i> Download Template (.js)</button>
+                    <div class="admin-section">
+                        <p class="admin-subtext">Upload new trip file (.js):</p>
+                        <input type="file" id="newTripFile" class="admin-input" accept=".js">
+                        <button onclick="uploadNewItinerary()" id="newTripUploadBtn" class="btn-admin-primary"><i class="fas fa-upload"></i> Upload & Create Trip</button>
+                    </div>
+                </div>
+            </div>` : ''}
             <div class="home-footer">More trips coming soon…</div>`;
     }
 
@@ -482,6 +494,7 @@
             isAdmin = true;
             showAdminDashboard();
             if (activeTrip) renderTrip();
+            else renderHome();
             closeModal('adminModal');
             alert('Editor mode unlocked!');
         } else {
@@ -498,6 +511,41 @@
         $('adminLoginArea').classList.add('hidden');
         $('adminDashboard').classList.remove('hidden');
     }
+
+    // ===== HOME ADMIN ACTIONS =====
+    window.downloadTemplate = function() {
+        const link = document.createElement('a');
+        link.href = 'trips/template.js';
+        link.download = 'template.js';
+        link.click();
+    };
+
+    window.uploadNewItinerary = function() {
+        const fileInput = $('newTripFile');
+        if (!fileInput || fileInput.files.length === 0) return alert('Select a .js file first.');
+        const file = fileInput.files[0];
+        if (!file.name.endsWith('.js')) return alert('Please upload a .js file.');
+
+        const btn = $('newTripUploadBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const content = e.target.result.split(',')[1];
+            const path = 'trips/' + file.name;
+            const success = await githubCommit(path, content, 'Upload new trip: ' + file.name, null, true);
+            if (success) {
+                alert('Trip uploaded successfully! Reloading...');
+                location.reload();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        };
+        reader.readAsDataURL(file);
+    };
 
     // ===== TICKETS MODAL (per-itinerary) =====
 
